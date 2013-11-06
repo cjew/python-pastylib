@@ -30,6 +30,8 @@ import httplib2
 import base64
 import json
 
+LIBVERSION = 0.2.0
+
 class NoValidAPIServer(Exception):
     pass
 
@@ -38,24 +40,36 @@ class RequestError(Exception):
 
 class PastyAPI():
     APIVERSION = 2.1
-    LIBVERSION = 0.1
     GET = "GET"
     POST = "POST"
     API_GETLIST = "/v2.1/clipboard/list.json"
     API_UPDATELIST = "/v2.1/clipboard/item"
 
     def __init__(self, api_server, login, ssl_validation=False):
-        # Test if ssl_validation is a boolean - throw errors when api_server
-        # is invalid or not available
+        # PastyAPI __init__ call
+        # @Param api_server API Server URI
+        # @Param login Tuple contains username & password
+        # @Param ssl_validation Boolean if SSL validation turned on or off
+
+        # Test if ssl_validation is boolean
         if type(ssl_validation) != bool:
             raise TypeError("Variable ssl_validation expected to be boolean")
         else:
             self.ssl_validation = ssl_validation
+
+        # Test if given API Server is available and valid URI
         if self.__checkAPIServer(api_server) is False:
             raise NoValidAPIServer("The API Server is not valid or available")
 
-        # Set internal username and password - save it as a tuple
-        self.login = login
+        # Test if login is tuple and set correct
+        # If username or password is empty, ask for it on cli
+        if type(login) != tuple:
+            raise TypeError("Tuple expected as login (username, password)")
+        else:
+            # Test if login tuple contains empty data
+            if not login[0] or not login[1]:
+                raise ValueError("Login tuple is empty (username or password)")
+            self.login = login
 
     def __checkAPIServer(self, api_server):
         # @Param api_server API Server string
@@ -85,11 +99,13 @@ class PastyAPI():
 
     def __createHeaders(self, action):
         # Create and return header dictionary based on username and password
+        headers = {}
+        headers['Authorization'] = 'Basic %s' % base64.b64encode(':'.join(self.login))
         if action == self.GET:
-            return({'Authorization':'Basic %s' % base64.b64encode(':'.join(self.login))})
+            pass # We do not modify the standard headers dictionary for GET requests
         if action == self.POST:
-            return({'Authorization':'Basic %s' % base64.b64encode(':'.join(self.login)),
-                    'Content-Type':'application/json'})
+            headers['Content-Type'] = 'application/json' # Add JSON header for JSON body in HTTP Request
+        return(headers)
 
     def __createItemBody(self):
         # Create body for HTTP Request to send an item to PastyAPI to be stored in the clipboard
