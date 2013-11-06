@@ -37,10 +37,12 @@ class RequestError(Exception):
     pass
 
 class PastyAPI():
-    APIVERSION  = 2.1
-    LIBVERSION  = 0.1
-    GET         = "GET"
+    APIVERSION = 2.1
+    LIBVERSION = 0.1
+    GET = "GET"
+    POST = "POST"
     API_GETLIST = "/v2.1/clipboard/list.json"
+    API_UPDATELIST = "/v2.1/clipboard/item"
 
     def __init__(self, api_server, login, ssl_validation=False):
         # Test if ssl_validation is a boolean - throw errors when api_server
@@ -58,6 +60,7 @@ class PastyAPI():
     def __checkAPIServer(self, api_server):
         # @Param api_server API Server string
         # Returns boolean
+        # Gets called by __init__
 
         api_server = str(api_server)
         
@@ -80,16 +83,24 @@ class PastyAPI():
             # Status is not 200 and we return False to __init__
             return(False)
 
-    def __createHeaders(self):
+    def __createHeaders(self, action):
         # Create and return header dictionary based on username and password
-        return({'Authorization':'Basic %s' % base64.b64encode(':'.join(self.login))})
+        if action == self.GET:
+            return({'Authorization':'Basic %s' % base64.b64encode(':'.join(self.login))})
+        if action == self.POST:
+            return({'Authorization':'Basic %s' % base64.b64encode(':'.join(self.login)),
+                    'Content-Type':'application/json'})
 
+    def __createItemBody(self):
+        # Create body for HTTP Request to send an item to PastyAPI to be stored in the clipboard
+        return(json.dumps({'item':self.new_item}))
+    
     def getClipboard(self):
         # getList connects to given API Server and requests whole clipboard
         # Returns list with all items stored in clipboard
         resp, content = httplib2.Http(disable_ssl_certificate_validation=self.ssl_validation)\
                                         .request(self.api_server+self.API_GETLIST, self.GET, \
-                                        headers=self.__createHeaders())
+                                        headers=self.__createHeaders(self.GET))
         if json.loads(content)['code'] != 200:
             raise RequestError(json.loads(content)["message"])
         else:
@@ -101,3 +112,18 @@ class PastyAPI():
                 item_list.append(i["item"])
             return(item_list)
 
+    def updateClipboard(self, new_item):
+        # @Param new_items has to be a string containing the item to be stored
+        # Returns boolean update status
+        if str(new_item) == "":
+            raise ValueError("Missing string to add")
+        self.new_item = str(new_item)
+        resp, content = httplib2.Http(disable_ssl_certificate_validation=self.ssl_validation)\
+                                        .request(self.api_server+self.API_UPDATELIST, self.POST, \
+                                        body=self.__createItemBody(), headers=self.__createHeaders(self.POST))
+        if json.loads(content)['code'] != 201:
+            raise RequestError(json.loads(content)["message"])
+        else:
+            # Code is 201 (regarding API specification)
+            # We do not return anything here as the list 
+            pass
