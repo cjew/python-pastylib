@@ -101,11 +101,3 @@ class PastyAPI():
                 item_list.append(i["item"])
             return(item_list)
 
-if __name__ == "__main__":
-    a = PastyAPI(api_server="http://api.pastyapp.org", login=("cjew","astatess"))
-    try:
-        items = a.getClipboard()
-        for item in items:
-            print(item)
-    except RequestError as e:
-        print(e)
